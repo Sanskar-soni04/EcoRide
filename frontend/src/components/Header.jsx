@@ -19,7 +19,7 @@ export default function Header() {
   const logout = () => { localStorage.removeItem('token'); localStorage.removeItem('user'); setIsLoggedIn(false); navigate('/login'); };
 
   const navLinks = isLoggedIn
-    ? [{to:'/',label:'Home'},{to:'/search',label:'Search'},{to:'/dashboard',label:'Dashboard'},{to:'/about',label:'About'}]
+    ? [{to:'/',label:'Home'},{to:'/search',label:'Search'},{to:'/dashboard',label:'Dashboard'},{to:'/profile',label:'Profile'},{to:'/about',label:'About'}]
     : [{to:'/',label:'Home'},{to:'/about',label:'About'}];
 
   const isActive = p => p==='/'?location.pathname==='/':location.pathname.startsWith(p);
@@ -78,14 +78,10 @@ export default function Header() {
       <Link to="/" className="hdr-logo">
         <div className="logo-mark">
           <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-            {/* Leaf */}
             <path d="M13 3C13 3 6 7.5 6 14C6 17.86 9.14 21 13 21C16.86 21 20 17.86 20 14C20 7.5 13 3 13 3Z" fill="rgba(5,10,14,0.82)"/>
-            {/* Center vein */}
             <line x1="13" y1="3" x2="13" y2="19.5" stroke="rgba(255,255,255,0.5)" strokeWidth="1.1" strokeLinecap="round"/>
-            {/* Branch veins */}
             <line x1="13" y1="10" x2="16.5" y2="7.5" stroke="rgba(255,255,255,0.38)" strokeWidth="0.9" strokeLinecap="round"/>
             <line x1="13" y1="13.5" x2="9.5" y2="11" stroke="rgba(255,255,255,0.38)" strokeWidth="0.9" strokeLinecap="round"/>
-            {/* Speed / motion lines */}
             <line x1="3.5" y1="15" x2="7" y2="15" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" strokeLinecap="round"/>
             <line x1="2.5" y1="18" x2="6.5" y2="18" stroke="rgba(255,255,255,0.38)" strokeWidth="1" strokeLinecap="round"/>
           </svg>

@@ -16,7 +16,8 @@ import PostRide from './pages/PostRide';
 import Dashboard from './pages/Dashboard';
 import Search from './pages/Search';
 import About from './pages/about';
-
+import Profile from './pages/Profile';
+import PublicProfile from './pages/PublicProfile';
 export default function App() {
   return (
     <BrowserRouter>
@@ -36,6 +37,8 @@ export default function App() {
         <Route path="/post-ride/:rideId" element={<ProtectedRoute><PostRide /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/profile/:userId" element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

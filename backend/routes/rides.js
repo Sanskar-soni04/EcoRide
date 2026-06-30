@@ -49,7 +49,7 @@ function escapeRegex(str) {
 // ── GET /api/rides — search / list all rides ─────────────────────────────────
 router.get('/', auth, async (req, res) => {
   try {
-    const filter = {};
+    const filter = { status: 'active', seats: { $gt: 0 } };
     if (req.query.from) filter.from = { $regex: escapeRegex(req.query.from), $options: 'i' };
     if (req.query.to)   filter.to   = { $regex: escapeRegex(req.query.to),   $options: 'i' };
     if (req.query.date) filter.date = req.query.date;
@@ -113,6 +113,10 @@ router.post('/:id/request', auth, async (req, res) => {
     if (!ride) return res.status(404).json({ message: 'Ride not found' });
     if (ride.postedBy.toString() === req.user.userId)
       return res.status(400).json({ message: "You can't request your own ride" });
+    if (ride.status !== 'active')
+      return res.status(400).json({ message: 'This ride is no longer active' });
+    if (ride.seats < 1)
+      return res.status(400).json({ message: 'No seats available on this ride' });
 
     // prevent duplicate requests
     const existing = await RideRequest.findOne({
@@ -146,8 +150,12 @@ router.put('/request/:reqId/accept', auth, async (req, res) => {
     request.status = 'accepted';
     await request.save();
 
-    // decrement available seats
-    await Ride.findByIdAndUpdate(request.ride._id, { $inc: { seats: -1 } });
+    // decrement available seats (atomic update, bypasses full-doc validation)
+    await Ride.findByIdAndUpdate(
+      request.ride._id,
+      { $inc: { seats: -1 } },
+      { runValidators: false }
+    );
 
     res.json({ message: 'Request accepted', request });
   } catch (e) { res.status(500).json({ message: 'Server error' }); }
@@ -189,7 +197,7 @@ router.put('/:id', auth, async (req, res) => {
     if (to)    ride.to    = to;
     if (date)  ride.date  = date;
     if (time)  ride.time  = time;
-    if (seats) ride.seats = seats;
+    if (seats !== undefined) ride.seats = seats;
 
     await ride.save();
     res.json({ message: 'Ride updated', ride });
@@ -199,12 +207,17 @@ router.put('/:id', auth, async (req, res) => {
 // ── PUT /api/rides/:id/complete — mark ride as completed (owner only) ─────────
 router.put('/:id/complete', auth, async (req, res) => {
   try {
-    const ride = await Ride.findOne({ _id: req.params.id, postedBy: req.user.userId });
-    if (!ride) return res.status(404).json({ message: 'Ride not found' });
-    if (ride.status !== 'active') return res.status(400).json({ message: 'Ride already completed or cancelled' });
+    const existing = await Ride.findOne({ _id: req.params.id, postedBy: req.user.userId });
+    if (!existing) return res.status(404).json({ message: 'Ride not found' });
+    if (existing.status !== 'active') return res.status(400).json({ message: 'Ride already completed or cancelled' });
 
-    ride.status = 'completed';
-    await ride.save();
+    // Only update the status field — avoids re-validating seats (which may
+    // legitimately be 0 once fully booked) via a full document .save().
+    const ride = await Ride.findByIdAndUpdate(
+      req.params.id,
+      { status: 'completed' },
+      { new: true, runValidators: false }
+    );
 
     // Also mark all accepted ride requests as completed
     await RideRequest.updateMany(
@@ -279,12 +292,15 @@ router.get('/history', auth, async (req, res) => {
 // ── PUT /api/rides/:id/cancel — cancel an active ride (owner only) ─────────────
 router.put('/:id/cancel', auth, async (req, res) => {
   try {
-    const ride = await Ride.findOne({ _id: req.params.id, postedBy: req.user.userId });
-    if (!ride) return res.status(404).json({ message: 'Ride not found' });
-    if (ride.status !== 'active') return res.status(400).json({ message: 'Can only cancel active rides' });
+    const existing = await Ride.findOne({ _id: req.params.id, postedBy: req.user.userId });
+    if (!existing) return res.status(404).json({ message: 'Ride not found' });
+    if (existing.status !== 'active') return res.status(400).json({ message: 'Can only cancel active rides' });
 
-    ride.status = 'cancelled';
-    await ride.save();
+    const ride = await Ride.findByIdAndUpdate(
+      req.params.id,
+      { status: 'cancelled' },
+      { new: true, runValidators: false }
+    );
 
     // Reject all pending requests for this ride
     await RideRequest.updateMany(
